@@ -281,3 +281,19 @@ def test_deprecated_in_invocation(runner):
 
     result = runner.invoke(deprecated_cmd)
     assert 'DeprecationWarning:' in result.output
+
+
+def test_plugin(runner):
+    from test_fixtures import test_cli_plugin
+    cli_name = 'my_plugin_cli'
+    plugin_cli = click.Plugin(cli_name, test_cli_plugin)
+    assert plugin_cli.name == cli_name
+    assert sorted(plugin_cli.commands.keys()) == [
+        'my-first-command',
+        'my-second-command',
+        'my-third-command'
+    ]
+    result = runner.invoke(plugin_cli, ['--help'])
+    assert 'my-first-command' in result.output
+    assert 'my-second-command' in result.output
+    assert 'my-third-command' in result.output

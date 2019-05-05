@@ -3,8 +3,10 @@ import inspect
 import os
 import sys
 from contextlib import contextmanager
+from importlib import import_module
 from itertools import repeat
 from functools import update_wrapper
+from pkgutil import walk_packages
 
 from .types import convert_type, IntRange, BOOL
 from .utils import PacifyFlushWrapper, make_str, make_default_short_help, \
@@ -1284,6 +1286,31 @@ class CommandCollection(MultiCommand):
         for source in self.sources:
             rv.update(source.list_commands(ctx))
         return sorted(rv)
+
+
+class Plugin(MultiCommand):
+    def __init__(self, name, module, **attrs):
+        MultiCommand.__init__(self, name, **attrs)
+        self.commands = {}
+        self.discover_commands(module)
+
+    def _add_command(self, cmd):
+        name = cmd.name
+        _check_multicommand(self, name, cmd, register=True)
+        self.commands[name] = cmd
+
+    def discover_commands(self, module):
+        for _, submodule_name, _ in walk_packages(module.__path__, prefix=module.__name__ + '.'):
+            submodule = import_module(submodule_name)
+            for attr in submodule.__dict__.values():
+                if isinstance(attr, Command):
+                    self._add_command(attr)
+
+    def get_command(self, ctx, cmd_name):
+        return self.commands.get(cmd_name)
+
+    def list_commands(self, ctx):
+        return sorted(self.commands)
 
 
 class Parameter(object):
